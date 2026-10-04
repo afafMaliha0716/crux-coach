@@ -1,0 +1,205 @@
+{
+  "gym": {
+    "name": "Summit Bouldering",
+    "example": true
+  },
+  "routes": [
+    {
+      "id": "tan",
+      "colorName": "Tan",
+      "colorHex": "#C9A27A",
+      "grade": 0,
+      "wall": "Slab",
+      "tags": [
+        "balance"
+      ],
+      "longestMoveIn": 40,
+      "status": "live"
+    },
+    {
+      "id": "yellow",
+      "colorName": "Yellow",
+      "colorHex": "#E6B93A",
+      "grade": 1,
+      "wall": "Slab",
+      "tags": [
+        "balance",
+        "high foot"
+      ],
+      "longestMoveIn": 44,
+      "status": "live"
+    },
+    {
+      "id": "mint",
+      "colorName": "Mint",
+      "colorHex": "#8FD3B6",
+      "grade": 1,
+      "wall": "Vertical",
+      "tags": [
+        "dynamic"
+      ],
+      "longestMoveIn": 46,
+      "status": "live"
+    },
+    {
+      "id": "green",
+      "colorName": "Green",
+      "colorHex": "#4E9A5B",
+      "grade": 2,
+      "wall": "Vertical",
+      "tags": [
+        "high foot",
+        "lock-off"
+      ],
+      "longestMoveIn": 48,
+      "status": "live"
+    },
+    {
+      "id": "pink",
+      "colorName": "Pink",
+      "colorHex": "#E58FB1",
+      "grade": 2,
+      "wall": "Slab",
+      "tags": [
+        "balance",
+        "mantle"
+      ],
+      "longestMoveIn": 42,
+      "status": "live"
+    },
+    {
+      "id": "purple",
+      "colorName": "Purple",
+      "colorHex": "#8662B8",
+      "grade": 3,
+      "wall": "Cave",
+      "tags": [
+        "body tension",
+        "heel hook"
+      ],
+      "longestMoveIn": 50,
+      "status": "live"
+    },
+    {
+      "id": "orange",
+      "colorName": "Orange",
+      "colorHex": "#E8873A",
+      "grade": 3,
+      "wall": "Vertical",
+      "tags": [
+        "high foot",
+        "crimps"
+      ],
+      "longestMoveIn": 52,
+      "status": "live"
+    },
+    {
+      "id": "white",
+      "colorName": "White",
+      "colorHex": "#F2EEE6",
+      "grade": 3,
+      "wall": "Overhang 20°",
+      "tags": [
+        "dynamic",
+        "slopers"
+      ],
+      "longestMoveIn": 60,
+      "status": "live"
+    },
+    {
+      "id": "blue",
+      "colorName": "Blue",
+      "colorHex": "#4F7FC4",
+      "grade": 4,
+      "wall": "Overhang 30°",
+      "tags": [
+        "body tension",
+        "high foot",
+        "lock-off"
+      ],
+      "longestMoveIn": 58,
+      "status": "live"
+    },
+    {
+      "id": "black",
+      "colorName": "Black",
+      "colorHex": "#2B2B33",
+      "grade": 4,
+      "wall": "Arete",
+      "tags": [
+        "compression",
+        "heel hook"
+      ],
+      "longestMoveIn": 54,
+      "status": "live"
+    },
+    {
+      "id": "red",
+      "colorName": "Red",
+      "colorHex": "#D9533F",
+      "grade": 4,
+      "wall": "Vertical",
+      "tags": [
+        "crimps",
+        "balance"
+      ],
+      "longestMoveIn": 50,
+      "status": "live"
+    },
+    {
+      "id": "teal",
+      "colorName": "Teal",
+      "colorHex": "#3E9AA3",
+      "grade": 5,
+      "wall": "Cave",
+      "tags": [
+        "body tension",
+        "toe hook"
+      ],
+      "longestMoveIn": 56,
+      "status": "live"
+    },
+    {
+      "id": "gray",
+      "colorName": "Gray",
+      "colorHex": "#8D8F98",
+      "grade": 5,
+      "wall": "Overhang 30°",
+      "tags": [
+        "dynamic",
+        "compression"
+      ],
+      "longestMoveIn": 64,
+      "status": "live"
+    },
+    {
+      "id": "lime",
+      "colorName": "Lime",
+      "colorHex": "#B5D23C",
+      "grade": 6,
+      "wall": "Overhang 45°",
+      "tags": [
+        "body tension",
+        "dynamic"
+      ],
+      "longestMoveIn": 62,
+      "status": "live"
+    }
+  ],
+  "beta": [
+    {
+      "routeId": "blue",
+      "heightMinIn": 48,
+      "heightMaxIn": 64,
+      "source": "setter",
+      "text": "Before the long move, bring your right foot up to the green jib at hip height. Stand on it, lock off with your left arm, then reach for the sloper with a bent arm."
+    },
+    {
+      "routeId": "blue",
+      "heightMinIn": 65,
+      "heightMaxIn": 84,
+      "source": "setter",
+      "text": "Keep both feet low and reach the sloper static."
+    }
+  ]
+}

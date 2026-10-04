@@ -1,0 +1,111 @@
+@import "tailwindcss";
+@import "@fontsource/fredoka/600.css";
+
+/* Design tokens. The interface is near-monochrome: the only saturated colors
+   on screen are a route's hold color and the one accent. */
+:root {
+  --bg: #faf8f4; /* chalk */
+  --surface: #ffffff;
+  --ink: #1e2547;
+  --body: #4a4e63;
+  --muted: #6f7489;
+  --line: #e7e3da;
+  --accent: #d2452f;
+  --accent-fg: #ffffff;
+  --ok: #2f7a56;
+  --ok-bg: #e3f1e8;
+  --flag-bg: #fbe6e1;
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  --bg: #12142a;
+  --surface: #1b1e3a;
+  --ink: #f4f1ea;
+  --body: #c9cbd8;
+  --muted: #8c90a8;
+  --line: #2c3058;
+  --accent: #f07a65;
+  --accent-fg: #1a1220;
+  --ok: #7fd0a4;
+  --ok-bg: #1d3f34;
+  --flag-bg: #43252c;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-body: var(--body);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-ok: var(--ok);
+  --color-ok-bg: var(--ok-bg);
+  --color-flag-bg: var(--flag-bg);
+  --font-sans: var(--font-geist-sans), system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  /* Type scale: 13 / 15 / 18 / 24 / 40. The 40 is for the hero numeral only. */
+  --text-13: 13px;
+  --text-15: 15px;
+  --text-18: 18px;
+  --text-24: 24px;
+  --text-40: 40px;
+}
+
+html {
+  background: var(--bg);
+}
+
+body {
+  background: var(--bg);
+  color: var(--body);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* Measurements read as measured: mono face, tabular numerals. */
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.wordmark {
+  font-family: "Fredoka", var(--font-sans);
+  font-weight: 600;
+}
+
+/* The route color dot: an irregular, hold-shaped blob. */
+.hold {
+  flex: none;
+  display: inline-block;
+  border: 1px solid var(--line);
+  border-radius: 58% 42% 55% 45% / 52% 60% 40% 48%;
+}
+
+* {
+  transition-property: background-color, border-color, color;
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
+}
+
+input[type="range"] {
+  accent-color: var(--ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
