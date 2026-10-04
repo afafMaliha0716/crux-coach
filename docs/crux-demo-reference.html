@@ -1,0 +1,638 @@
+<title>Crux Demo</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Nunito+Sans:wght@400;600;700;800&display=swap">
+<style>
+/* Layout: app bar with a Climber/Coach switch; climber view is a profile rail beside a single working column (session, attempt, log). */
+:root{
+  --bg:#FBF4E6; --surface:#FFF9EE; --panel:#F8DDB8; --fg:#2F3A78; --body:#5A4636; --muted:#86705C;
+  --line:#EBD3AE; --accent:#C8412F; --accent-fg:#FFF9EE; --navy:#2F3A78; --navy-fg:#FFF9EE;
+  --mustard:#E6B93A; --blue:#6E9BC7; --ok:#2F7A56; --warn-bg:#FBE3DA; --ok-bg:#DCEFE2; --stage:#EAD9BC;
+  --display:'Fredoka', 'Trebuchet MS', Verdana, sans-serif; --text:'Nunito Sans', Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#171A30; --surface:#22264A; --panel:#2C3160; --fg:#F6ECD9; --body:#D9CFC0; --muted:#A79FB4;
+  --line:#3A4078; --accent:#F08A76; --accent-fg:#1B1530; --navy:#8FA4E8; --navy-fg:#141731;
+  --mustard:#E6B93A; --blue:#8DB6DE; --ok:#7FD0A4; --warn-bg:#4A2A33; --ok-bg:#20463A; --stage:#101326; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#171A30; --surface:#22264A; --panel:#2C3160; --fg:#F6ECD9; --body:#D9CFC0; --muted:#A79FB4;
+  --line:#3A4078; --accent:#F08A76; --accent-fg:#1B1530; --navy:#8FA4E8; --navy-fg:#141731;
+  --mustard:#E6B93A; --blue:#8DB6DE; --ok:#7FD0A4; --warn-bg:#4A2A33; --ok-bg:#20463A; --stage:#101326; color-scheme:dark }
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--body);font-family:var(--text);font-size:16px;line-height:1.5;padding-inline:20px;padding-block:0 48px}
+.wrap{max-width:1120px;margin-inline:auto;display:flex;flex-direction:column;gap:24px}
+h1,h2,h3{font-family:var(--display);color:var(--fg);font-weight:600;line-height:1.15;text-wrap:balance}
+h2{font-size:26px} h3{font-size:19px}
+p{margin-block:0} h1,h2,h3{margin-block:0}
+.eyebrow{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+.muted{color:var(--muted);font-size:14px}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;padding-block:20px 4px}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--display);font-size:30px;font-weight:600;color:var(--fg)}
+.hold{width:26px;height:22px;background:var(--accent);border-radius:58% 42% 55% 45% / 52% 60% 40% 48%;position:relative;transform:rotate(-12deg)}
+.hold::after{content:"";position:absolute;inset:7px 9px;background:var(--bg);border-radius:50%}
+.gym{font-size:14px;color:var(--muted)}
+.seg{margin-left:auto;display:flex;background:var(--panel);border-radius:999px;padding:4px}
+.seg button{border:0;background:transparent;padding:8px 18px;border-radius:999px;font-weight:700;cursor:pointer;color:var(--fg)}
+.seg button[aria-pressed="true"]{background:var(--navy);color:var(--navy-fg)}
+
+.cols{display:grid;grid-template-columns:300px minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:820px){.cols{grid-template-columns:minmax(0,1fr)}}
+.stack{display:flex;flex-direction:column;gap:24px;min-width:0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:22px;display:flex;flex-direction:column;gap:16px;min-width:0}
+.rail{background:var(--panel);border-color:transparent}
+.field{display:flex;flex-direction:column;gap:6px;font-size:14px;font-weight:700;color:var(--fg)}
+.field .row{display:flex;gap:8px}
+select,input[type=number]{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-width:0;width:100%;font-weight:600}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;font-size:14px;font-weight:600;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--navy);color:var(--navy-fg);border-color:var(--navy)}
+.stat{display:flex;justify-content:space-between;gap:12px;font-size:14px;border-top:1px solid var(--line);padding-top:10px}
+.stat b{color:var(--fg);font-variant-numeric:tabular-nums}
+
+.head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 16px}
+.routes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+@media (max-width:820px){.routes{grid-template-columns:minmax(0,1fr)}}
+.route{border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:8px;background:var(--bg);min-width:0}
+.route .slot{font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.route .name{display:flex;align-items:center;gap:8px;font-family:var(--display);font-size:21px;color:var(--fg);font-weight:600}
+.dot{flex:none;width:18px;height:16px;border-radius:58% 42% 55% 45% / 52% 60% 40% 48%;border:1px solid var(--line)}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tag{font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--panel);color:var(--fg)}
+.tag.hit{background:var(--mustard);color:#2F3A78}
+.why{font-size:14px}
+.flag{font-size:13px;font-weight:700;color:var(--accent)}
+.new{align-self:flex-start;font-size:12px;font-weight:800;background:var(--ok-bg);color:var(--ok);padding:2px 8px;border-radius:999px}
+
+.actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.btn{border:0;border-radius:12px;padding:10px 16px;font-weight:700;cursor:pointer;background:var(--navy);color:var(--navy-fg)}
+.btn.alt{background:var(--panel);color:var(--fg)}
+.btn.red{background:var(--accent);color:var(--accent-fg)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.attempt{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:820px){.attempt{grid-template-columns:minmax(0,1fr)}}
+.stage{background:var(--stage);border-radius:14px;overflow:hidden;display:flex;justify-content:center}
+canvas{display:block;max-width:100%;height:auto}
+.status{font-size:14px;font-weight:700;color:var(--fg);min-height:21px}
+.metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.metric{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.metric .v{font-family:var(--display);font-size:24px;color:var(--fg);font-variant-numeric:tabular-nums}
+.metric .l{font-size:13px;color:var(--muted)}
+.finding{border-radius:12px;padding:12px 14px;background:var(--warn-bg);color:var(--fg);display:flex;flex-direction:column;gap:2px}
+.finding.ok{background:var(--ok-bg)}
+.finding b{font-family:var(--display);font-size:17px}
+.beta{border:2px dashed var(--mustard);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:4px}
+.pill{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:1px 7px;border-radius:999px;border:1px solid var(--line);color:var(--muted);vertical-align:middle}
+.note{background:var(--ok-bg);color:var(--fg);border-radius:12px;padding:12px 14px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:8px 10px;border-top:1px solid var(--line);vertical-align:top}
+th{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);border-top:0}
+.scroll{overflow-x:auto}
+.summary{display:flex;flex-wrap:wrap;gap:14px}
+.sum{flex:1 1 160px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.sum .v{font-family:var(--display);font-size:34px;color:var(--fg);line-height:1}
+.sum.alert .v{color:var(--accent)}
+.person{border:1px solid var(--line);border-radius:14px;padding:16px;background:var(--bg);display:flex;flex-direction:column;gap:8px}
+.person .top{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 12px;align-items:baseline}
+.person .nm{font-family:var(--display);font-size:19px;color:var(--fg);font-weight:600}
+.person input[type=text]{flex:1 1 200px;min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.foot{font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:16px;max-width:75ch}
+</style>
+
+<div class="wrap">
+  <header class="bar">
+    <div class="brand"><span class="hold" aria-hidden="true"></span>Crux</div>
+    <div class="gym">Summit Bouldering <span class="pill">demo gym</span></div>
+    <button class="btn alt" type="button" id="btn-reset" style="margin-left:auto">Reset demo</button>
+    <div class="seg" role="group" aria-label="View" style="margin-left:0">
+      <button id="tab-climber" type="button" aria-pressed="true">Climber</button>
+      <button id="tab-coach" type="button" aria-pressed="false">Coach</button>
+    </div>
+  </header>
+
+  <main id="view-climber" class="cols">
+    <aside class="card rail">
+      <div><p class="eyebrow">Your profile</p><h2>Built for your body</h2></div>
+      <div class="field"><span>Height</span>
+        <div class="row">
+          <select id="p-ft" aria-label="Feet"></select>
+          <select id="p-in" aria-label="Inches"></select>
+        </div>
+      </div>
+      <label class="field" for="p-ape">Ape index (inches, span minus height)
+        <input id="p-ape" type="number" min="-4" max="6" step="1" value="0">
+      </label>
+      <label class="field" for="p-grade">Grade you send most sessions
+        <select id="p-grade"></select>
+      </label>
+      <div class="field"><span>What you want to work on</span>
+        <div class="chips" id="p-weak"></div>
+      </div>
+      <div class="stat"><span>Arm span</span><b id="s-span"></b></div>
+      <div class="stat"><span>Goal</span><b id="s-goal"></b></div>
+    </aside>
+
+    <div class="stack">
+      <section class="card" aria-labelledby="h-session">
+        <div class="head">
+          <div><p class="eyebrow">Today's session</p><h2 id="h-session">Three climbs from the wall right now</h2></div>
+          <p class="muted" id="session-note"></p>
+        </div>
+        <div class="routes" id="session"></div>
+        <div id="coach-note" class="note" hidden></div>
+      </section>
+
+      <section class="card" aria-labelledby="h-attempt">
+        <div><p class="eyebrow">Upload an attempt</p><h2 id="h-attempt">See what happened at the crux</h2></div>
+        <div class="actions">
+          <label class="field" for="a-route" style="flex:1 1 200px">Route
+            <select id="a-route"></select>
+          </label>
+        </div>
+        <div class="actions">
+          <button class="btn" type="button" id="btn-upload">Upload a video</button>
+          <input id="a-file" type="file" accept="video/*" hidden>
+          <button class="btn alt" type="button" id="btn-a">Play sample: fall at the crux</button>
+          <button class="btn alt" type="button" id="btn-b">Play sample: with the new beta</button>
+        </div>
+        <div class="attempt">
+          <div class="stack" style="gap:8px">
+            <div class="stage"><canvas id="cv" width="360" height="480" aria-label="Attempt playback with pose overlay"></canvas></div>
+            <p class="status" id="status" aria-live="polite">Pick a sample or upload a video filmed from behind.</p>
+          </div>
+          <div class="stack" style="gap:14px" id="results">
+            <p class="muted">Crux tracks your shoulders, elbows, hips, knees and feet through the attempt, then measures the move where you reached furthest.</p>
+          </div>
+        </div>
+        <video id="vid" muted playsinline hidden></video>
+      </section>
+
+      <section class="card" aria-labelledby="h-log">
+        <div><p class="eyebrow">Your attempts</p><h2 id="h-log">What Crux has learned about you</h2></div>
+        <div id="log"><p class="muted">No attempts logged yet. Each one updates your session and what your coach sees.</p></div>
+      </section>
+    </div>
+  </main>
+
+  <main id="view-coach" class="stack" hidden>
+    <div><p class="eyebrow">Coach dashboard</p><h2>Who needs you today</h2></div>
+    <div class="summary" id="c-summary"></div>
+    <section class="card" aria-labelledby="h-need">
+      <h3 id="h-need">Needs attention</h3>
+      <div class="stack" style="gap:12px" id="c-need"></div>
+    </section>
+    <section class="card" aria-labelledby="h-track">
+      <h3 id="h-track">On track</h3>
+      <div class="scroll"><table><thead><tr><th>Climber</th><th>Height</th><th>Grade</th><th>Last 4 weeks</th></tr></thead><tbody id="c-track"></tbody></table></div>
+    </section>
+    <section class="card" aria-labelledby="h-set">
+      <h3 id="h-set">For the setters <span class="pill">example data</span></h3>
+      <p>Blue V4 on the 30° wall: 4 of 5 climbers under 5'4" fall on the move to the sloper. It climbs about a grade harder for shorter members.</p>
+    </section>
+  </main>
+
+  <p class="foot"><b>What's live in this demo:</b> the session is chosen by your profile and attempt history, and the movement numbers are measured from the video frame by frame. The gym, its routes, the other climbers and the beta library are example data.</p>
+</div>
+
+<script>
+"use strict";
+/* ---------- example gym data ---------- */
+const ROUTES=[
+ {id:"tan",name:"Tan",hex:"#C9A27A",g:0,wall:"Slab",tags:["balance"],span:40},
+ {id:"yellow",name:"Yellow",hex:"#E6B93A",g:1,wall:"Slab",tags:["balance","high foot"],span:44},
+ {id:"mint",name:"Mint",hex:"#8FD3B6",g:1,wall:"Vertical",tags:["dynamic"],span:46},
+ {id:"green",name:"Green",hex:"#4E9A5B",g:2,wall:"Vertical",tags:["high foot","lock-off"],span:48},
+ {id:"pink",name:"Pink",hex:"#E58FB1",g:2,wall:"Slab",tags:["balance","mantle"],span:42},
+ {id:"purple",name:"Purple",hex:"#8662B8",g:3,wall:"Cave",tags:["body tension","heel hook"],span:50},
+ {id:"orange",name:"Orange",hex:"#E8873A",g:3,wall:"Vertical",tags:["high foot","crimps"],span:52},
+ {id:"white",name:"White",hex:"#F2EEE6",g:3,wall:"Overhang 20°",tags:["dynamic","slopers"],span:60},
+ {id:"blue",name:"Blue",hex:"#4F7FC4",g:4,wall:"Overhang 30°",tags:["body tension","high foot","lock-off"],span:58,
+   betaShort:"Before the long move, bring your right foot up to the green jib at hip height. Stand on it, lock off with your left arm, then reach for the sloper with a bent arm.",
+   betaTall:"Keep both feet low and reach the sloper static."},
+ {id:"black",name:"Black",hex:"#2B2B33",g:4,wall:"Arete",tags:["compression","heel hook"],span:54},
+ {id:"red",name:"Red",hex:"#D9533F",g:4,wall:"Vertical",tags:["crimps","balance"],span:50},
+ {id:"teal",name:"Teal",hex:"#3E9AA3",g:5,wall:"Cave",tags:["body tension","toe hook"],span:56},
+ {id:"gray",name:"Gray",hex:"#8D8F98",g:5,wall:"Overhang 30°",tags:["dynamic","compression"],span:64},
+ {id:"lime",name:"Lime",hex:"#B5D23C",g:6,wall:"Overhang 45°",tags:["body tension","dynamic"],span:62}
+];
+const WEAK=[
+ {id:"tension",label:"Steep body tension",tags:["body tension"]},
+ {id:"dyn",label:"Dynamic moves",tags:["dynamic"]},
+ {id:"feet",label:"High feet",tags:["high foot"]},
+ {id:"bal",label:"Slab balance",tags:["balance"]},
+ {id:"lock",label:"Lock-offs",tags:["lock-off"]},
+ {id:"hooks",label:"Heel and toe hooks",tags:["heel hook","toe hook"]},
+ {id:"comp",label:"Compression",tags:["compression"]}
+];
+const FINDINGS={
+ reach:{title:"Reached at full extension",tags:["high foot","lock-off"]},
+ bent:{title:"Hanging on bent arms",tags:["balance"]}
+};
+const ROSTER=[
+ {name:"Maya K.",h:"5'2\"",g:"V4",flag:"Fell at the same move on Blue V4 in 3 attempts this week. Feet cut loose each time.",trend:""},
+ {name:"Sam R.",h:"5'11\"",g:"V4",flag:"No new sends in 3 weeks. Sessions are down from 3 a week to 1.",trend:""},
+ {name:"Dev P.",h:"5'8\"",g:"V3",trend:"V2 to V3, 9 sessions"},
+ {name:"Lena W.",h:"5'5\"",g:"V5",trend:"First V5 send, 11 sessions"},
+ {name:"Chris O.",h:"6'1\"",g:"V2",trend:"V1 to V2, 6 sessions"},
+ {name:"Priya N.",h:"5'4\"",g:"V4",trend:"3 new V4 sends, 8 sessions"}
+];
+
+/* ---------- state ---------- */
+const S={ft:5,inch:0,ape:0,grade:3,weak:["tension","dyn"],attempts:[],reviewed:{},coachNote:"",lastSession:null,busy:false};
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const heightIn=()=>S.ft*12+S.inch, spanIn=()=>heightIn()+S.ape;
+const fmtH=n=>Math.floor(n/12)+"'"+(n%12)+'"';
+const routeLabel=r=>r.name+" V"+r.g;
+
+/* ---------- session logic ---------- */
+function tagWeights(){
+  const w={};
+  S.weak.forEach(id=>WEAK.find(x=>x.id===id).tags.forEach(t=>w[t]=(w[t]||0)+2));
+  S.attempts.forEach(a=>a.findings.forEach(f=>FINDINGS[f].tags.forEach(t=>w[t]=(w[t]||0)+3)));
+  return w;
+}
+const isReachy=r=>r.span>0.93*spanIn();
+function pick(grades,w,taken,avoidReach){
+  let best=null,bs=-1e9;
+  ROUTES.forEach((r,i)=>{
+    if(!grades.includes(r.g)||taken.includes(r.id))return;
+    let s=r.tags.reduce((a,t)=>a+(w[t]||0),0)-i*0.01;
+    if(avoidReach&&isReachy(r))s-=2;
+    if(s>bs){bs=s;best=r}
+  });
+  return best;
+}
+function buildSession(){
+  const w=tagWeights(),g=S.grade,taken=[],out=[];
+  const add=(slot,grades,avoid)=>{
+    let r=null;
+    for(const gs of grades){r=pick(gs,w,taken,avoid);if(r)break}
+    if(r){taken.push(r.id);out.push({slot,r,hits:r.tags.filter(t=>w[t])})}
+  };
+  add("Warm-up",[[g-2,g-1],[g-3],[g]],true);
+  add("Technique",[[g],[g-1]],false);
+  add("Project",[[g+1],[g],[g-1]],false);
+  return out;
+}
+function whyText(e){
+  const hs=e.hits.length?e.hits:[e.r.tags[0]];
+  const h=hs.length>2?hs.slice(0,-1).join(", ")+" and "+hs[hs.length-1]:hs.join(" and ");
+  if(e.slot==="Warm-up")return "Practice "+h+" well under your limit.";
+  if(e.slot==="Technique")return "Trains "+h+" at a grade you can repeat.";
+  return "Your next grade, with "+h+".";
+}
+function renderSession(){
+  const ses=buildSession();
+  const prev=S.lastSession;
+  const ids=ses.map(e=>e.r.id);
+  $("session").innerHTML=ses.map(e=>{
+    const r=e.r,isNew=prev&&!prev.includes(r.id)&&S.attempts.length;
+    return '<article class="route"><span class="slot">'+e.slot+'</span>'+
+      '<div class="name"><span class="dot" style="background:'+r.hex+'"></span>'+routeLabel(r)+'</div>'+
+      '<span class="muted">'+r.wall+'</span>'+
+      '<div class="tags">'+r.tags.map(t=>'<span class="tag'+(e.hits.includes(t)?' hit':'')+'">'+t+'</span>').join("")+'</div>'+
+      '<p class="why">'+whyText(e)+'</p>'+
+      (isReachy(r)?'<p class="flag">Longest move is '+r.span+' in. Your span is '+spanIn()+' in, so Crux uses short-climber beta.</p>':'')+
+      (isNew?'<span class="new">Added after your last attempt</span>':'')+
+      '</article>';
+  }).join("");
+  $("session-note").textContent=ROUTES.length+" routes tagged by the setters";
+  const sel=$("a-route"),cur=sel.value;
+  sel.innerHTML=ses.map(e=>'<option value="'+e.r.id+'">'+routeLabel(e.r)+" · "+e.slot+'</option>').join("");
+  sel.value=ids.includes(cur)?cur:(ses[ses.length-1]||{r:{id:""}}).r.id;
+  return ids;
+}
+function renderProfile(){
+  $("s-span").textContent=spanIn()+" in";
+  $("s-goal").textContent="Send V"+(S.grade+1)+" consistently";
+}
+function refresh(keepPrev){
+  renderProfile();
+  const ids=renderSession();
+  if(!keepPrev)S.lastSession=ids;
+  renderCoach();
+  const n=$("coach-note");
+  n.hidden=!S.coachNote;
+  n.innerHTML=S.coachNote?"<b>Note from Coach Dana:</b> "+esc(S.coachNote):"";
+}
+
+/* ---------- pose math ---------- */
+const L={ls:11,rs:12,le:13,re:14,lw:15,rw:16,lh:23,rh:24,lk:25,rk:26,la:27,ra:28};
+const BONES=[[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[25,27],[24,26],[26,28]];
+const ok=p=>p&&(p.visibility===undefined||p.visibility>0.5);
+function ang(a,b,c){
+  const v1x=a.x-b.x,v1y=a.y-b.y,v2x=c.x-b.x,v2y=c.y-b.y;
+  const d=Math.hypot(v1x,v1y)*Math.hypot(v2x,v2y);
+  if(!d)return 180;
+  return Math.acos(Math.max(-1,Math.min(1,(v1x*v2x+v1y*v2y)/d)))*180/Math.PI;
+}
+function analyze(frames,W,H){
+  const px=p=>({x:p.x*W,y:p.y*H});
+  let peak=null,over=0,bent=0,used=0;const feet=[];
+  frames.forEach(f=>{
+    const m=f.lm;if(!m)return;
+    if(![L.ls,L.rs,L.lh,L.rh].every(i=>ok(m[i])))return;
+    used++;
+    const ls=px(m[L.ls]),rs=px(m[L.rs]),lh=px(m[L.lh]),rh=px(m[L.rh]);
+    const torso=Math.hypot((ls.x+rs.x)/2-(lh.x+rh.x)/2,(ls.y+rs.y)/2-(lh.y+rh.y)/2)||1;
+    let minOver=null;
+    [[L.ls,L.le,L.lw],[L.rs,L.re,L.rw]].forEach(a=>{
+      if(!a.every(i=>ok(m[i])))return;
+      const s=px(m[a[0]]),e=px(m[a[1]]),w=px(m[a[2]]);
+      const reach=(s.y-w.y)/torso,an=ang(s,e,w);
+      if(!peak||reach>peak.reach)peak={reach,ang:an,t:f.t};
+      if(reach>0.3)minOver=minOver===null?an:Math.min(minOver,an);
+    });
+    if(minOver!==null){over++;if(minOver<95)bent++}
+    let hi=false;
+    [[L.lh,L.lk],[L.rh,L.rk]].forEach(a=>{if(ok(m[a[1]])&&px(m[a[1]]).y<px(m[a[0]]).y-0.05*torso)hi=true});
+    feet.push({t:f.t,hi});
+  });
+  if(!peak||used<frames.length*0.3||used<5)return null;
+  const highFoot=feet.some(x=>x.hi&&x.t<=peak.t+0.1&&x.t>=peak.t-3);
+  const bentShare=over?bent/over:0;
+  const findings=[];
+  if(peak.ang>=160&&peak.reach>=0.9)findings.push("reach");
+  if(bentShare>0.65)findings.push("bent");
+  return {peak,highFoot,bentShare,findings};
+}
+
+/* ---------- drawing ---------- */
+const cv=$("cv"),ctx=cv.getContext("2d");
+function css(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim()}
+function drawSkeleton(m,W,H,hot){
+  if(!m)return;
+  ctx.lineCap="round";ctx.lineWidth=Math.max(3,W/90);
+  BONES.forEach(b=>{
+    const a=m[b[0]],c=m[b[1]];if(!ok(a)||!ok(c))return;
+    ctx.strokeStyle=hot&&hot.includes(b[0])&&hot.includes(b[1])?"#E6B93A":"#FFF9EE";
+    ctx.beginPath();ctx.moveTo(a.x*W,a.y*H);ctx.lineTo(c.x*W,c.y*H);ctx.stroke();
+  });
+  Object.values(L).forEach(i=>{
+    const p=m[i];if(!ok(p))return;
+    ctx.fillStyle="#C8412F";ctx.beginPath();ctx.arc(p.x*W,p.y*H,Math.max(4,W/70),0,7);ctx.fill();
+  });
+}
+function idleStage(){
+  cv.width=360;cv.height=480;drawWall(null);
+}
+
+/* ---------- sample attempts (animated figure, same analysis as video) ---------- */
+const HOLDS=[
+ {x:.38,y:.55,c:"#4F7FC4"},{x:.56,y:.52,c:"#4F7FC4"},{x:.42,y:.40,c:"#4F7FC4"},
+ {x:.66,y:.22,c:"#4F7FC4",crux:true},{x:.55,y:.10,c:"#4F7FC4"},
+ {x:.40,y:.86,c:"#4F7FC4"},{x:.58,y:.84,c:"#4F7FC4"},{x:.62,y:.62,c:"#4E9A5B",jib:true}
+];
+function drawWall(note){
+  const W=cv.width,H=cv.height;
+  ctx.fillStyle="#D9C4A0";ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle="rgba(90,70,54,.18)";ctx.lineWidth=1;
+  for(let x=W/6;x<W;x+=W/6){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke()}
+  for(let y=H/8;y<H;y+=H/8){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}
+  HOLDS.forEach(h=>{
+    ctx.fillStyle=h.c;ctx.beginPath();
+    ctx.ellipse(h.x*W,h.y*H,h.jib?9:14,h.jib?7:11,0.4,0,7);ctx.fill();
+  });
+  ctx.fillStyle="#2F3A78";ctx.font="700 12px 'Nunito Sans', Arial, sans-serif";
+  ctx.fillText("Sample animation · Blue V4",10,H-10);
+  if(note){ctx.fillText(note,10,18)}
+}
+function ik(root,target,l1,l2,up){
+  let dx=target.x-root.x,dy=target.y-root.y,d=Math.hypot(dx,dy)||1e-6;
+  const max=l1+l2-1e-4;if(d>max){dx*=max/d;dy*=max/d;d=max}
+  const a=Math.acos(Math.max(-1,Math.min(1,(l1*l1+d*d-l2*l2)/(2*l1*d)))),th=Math.atan2(dy,dx);
+  const j1={x:root.x+l1*Math.cos(th+a),y:root.y+l1*Math.sin(th+a)};
+  const j2={x:root.x+l1*Math.cos(th-a),y:root.y+l1*Math.sin(th-a)};
+  const j=(up?(j1.y<j2.y):(j1.y>j2.y))?j1:j2;
+  return {j,end:{x:root.x+dx,y:root.y+dy}};
+}
+function figure(k){
+  const m=[];const T=.2,sw=.06,hw=.045;
+  const set=(i,p)=>m[i]={x:p.x,y:p.y,visibility:1};
+  const ls={x:k.hip.x-sw,y:k.hip.y-T},rs={x:k.hip.x+sw,y:k.hip.y-T};
+  const lh={x:k.hip.x-hw,y:k.hip.y},rh={x:k.hip.x+hw,y:k.hip.y};
+  set(L.ls,ls);set(L.rs,rs);set(L.lh,lh);set(L.rh,rh);
+  let r=ik(ls,k.lh,.11,.11,false);set(L.le,r.j);set(L.lw,r.end);
+  r=ik(rs,k.rh,.11,.11,false);set(L.re,r.j);set(L.rw,r.end);
+  r=ik(lh,k.lf,.15,.15,true);set(L.lk,r.j);set(L.la,r.end);
+  r=ik(rh,k.rf,.15,.15,true);set(L.rk,r.j);set(L.ra,r.end);
+  return m;
+}
+const P=(x,y)=>({x,y});
+const KEYS={
+ a:[
+  {t:0,hip:P(.48,.70),lh:P(.38,.55),rh:P(.56,.52),lf:P(.40,.86),rf:P(.58,.84)},
+  {t:1.5,hip:P(.47,.63),lh:P(.42,.40),rh:P(.56,.52),lf:P(.40,.86),rf:P(.58,.84)},
+  {t:3.0,hip:P(.50,.63),lh:P(.42,.40),rh:P(.66,.22),lf:P(.40,.86),rf:P(.58,.84)},
+  {t:3.9,hip:P(.50,.63),lh:P(.42,.40),rh:P(.66,.22),lf:P(.40,.86),rf:P(.58,.84)},
+  {t:4.6,hip:P(.50,.90),lh:P(.44,.62),rh:P(.60,.60),lf:P(.44,1.12),rf:P(.58,1.12)},
+  {t:5.2,hip:P(.50,.90),lh:P(.44,.62),rh:P(.60,.60),lf:P(.44,1.12),rf:P(.58,1.12)}
+ ],
+ b:[
+  {t:0,hip:P(.48,.70),lh:P(.38,.55),rh:P(.56,.52),lf:P(.40,.86),rf:P(.58,.84)},
+  {t:1.5,hip:P(.47,.63),lh:P(.42,.40),rh:P(.56,.52),lf:P(.40,.86),rf:P(.58,.84)},
+  {t:2.7,hip:P(.49,.62),lh:P(.42,.40),rh:P(.56,.52),lf:P(.40,.86),rf:P(.62,.62)},
+  {t:4.1,hip:P(.54,.50),lh:P(.42,.40),rh:P(.66,.22),lf:P(.47,.78),rf:P(.62,.62)},
+  {t:5.2,hip:P(.54,.46),lh:P(.55,.10),rh:P(.66,.22),lf:P(.47,.74),rf:P(.62,.62)},
+  {t:5.8,hip:P(.54,.46),lh:P(.55,.10),rh:P(.66,.22),lf:P(.47,.74),rf:P(.62,.62)}
+ ]
+};
+function keyAt(keys,t){
+  let i=0;while(i<keys.length-2&&t>keys[i+1].t)i++;
+  const a=keys[i],b=keys[i+1];let u=Math.max(0,Math.min(1,(t-a.t)/(b.t-a.t)));
+  u=u*u*(3-2*u);
+  const mix=(p,q)=>({x:p.x+(q.x-p.x)*u,y:p.y+(q.y-p.y)*u});
+  return {hip:mix(a.hip,b.hip),lh:mix(a.lh,b.lh),rh:mix(a.rh,b.rh),lf:mix(a.lf,b.lf),rf:mix(a.rf,b.rf)};
+}
+function sampleFrames(which){
+  const keys=KEYS[which],end=keys[keys.length-1].t,frames=[];
+  for(let t=0;t<=end;t+=1/30)frames.push({t,lm:figure(keyAt(keys,t))});
+  return frames;
+}
+function playSample(which){
+  if(S.busy)return;setBusy(true);
+  cv.width=360;cv.height=480;
+  const frames=sampleFrames(which),end=frames[frames.length-1].t,t0=performance.now();
+  $("status").textContent="Tracking pose…";
+  const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function step(now){
+    const t=reduce?end:Math.min(end,(now-t0)/1000);
+    const f=frames[Math.min(frames.length-1,Math.round(t*30))];
+    drawWall(null);drawSkeleton(f.lm,cv.width,cv.height);
+    if(t<end){requestAnimationFrame(step);return}
+    finish(frames,cv.width,cv.height,"sample",which==="a"?"fell":"sent",()=>{drawWall(null)});
+  }
+  requestAnimationFrame(step);
+}
+
+/* ---------- real video with MediaPipe Pose ---------- */
+let poseP=null,lastLm=null;
+function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement("script");s.src=src;s.onload=res;s.onerror=()=>rej(new Error("load"));document.head.appendChild(s)})}
+function getPose(){
+  if(poseP)return poseP;
+  poseP=(async()=>{
+    await loadScript("pose/pose.js");
+    const p=new Pose({locateFile:f=>"pose/"+f+(/\.(tflite|data|binarypb)$/.test(f)?".wasm":"")});
+    p.setOptions({modelComplexity:1,smoothLandmarks:true,minDetectionConfidence:0.5,minTrackingConfidence:0.5});
+    p.onResults(r=>{lastLm=r.poseLandmarks||null});
+    await Promise.race([p.initialize(),new Promise((_,rej)=>setTimeout(()=>rej(new Error("timeout")),40000))]);
+    return p;
+  })();
+  poseP.catch(()=>{poseP=null});
+  return poseP;
+}
+async function playVideo(file){
+  if(S.busy)return;setBusy(true);
+  const v=$("vid"),st=$("status");
+  st.textContent="Loading the pose model (first time takes a few seconds)…";
+  let pose;
+  try{pose=await getPose()}catch(e){
+    st.textContent="Pose tracking could not start in this browser. Try Chrome on a laptop, or use a sample attempt.";setBusy(false);return;
+  }
+  const url=URL.createObjectURL(file);
+  try{
+    v.src=url;
+    await new Promise((res,rej)=>{v.onloadeddata=res;v.onerror=()=>rej(new Error("video"))});
+    const sc=Math.min(1,640/Math.max(v.videoWidth,v.videoHeight));
+    cv.width=Math.round(v.videoWidth*sc);cv.height=Math.round(v.videoHeight*sc);
+    const frames=[],limit=Math.min(v.duration||45,45);
+    await v.play();
+    while(!v.ended&&v.currentTime<limit){
+      lastLm=null;
+      await pose.send({image:v});
+      ctx.drawImage(v,0,0,cv.width,cv.height);
+      drawSkeleton(lastLm,cv.width,cv.height);
+      frames.push({t:v.currentTime,lm:lastLm});
+      st.textContent="Tracking pose… "+Math.round(100*v.currentTime/limit)+"%";
+      await new Promise(r=>requestAnimationFrame(r));
+    }
+    v.pause();
+    finish(frames,cv.width,cv.height,"video",null,null);
+  }catch(e){
+    st.textContent="That video could not be played. Try an MP4 or MOV clip under a minute.";setBusy(false);
+  }finally{URL.revokeObjectURL(url)}
+}
+
+/* ---------- results ---------- */
+function setBusy(b){S.busy=b;["btn-upload","btn-a","btn-b"].forEach(i=>$(i).disabled=b)}
+function finish(frames,W,H,source,outcome){
+  const res=analyze(frames,W,H),st=$("status");
+  if(!res){
+    st.textContent="Crux could not find a climber in this clip. Film from behind with your whole body in frame.";
+    setBusy(false);return;
+  }
+  const pf=frames.reduce((b,f)=>Math.abs(f.t-res.peak.t)<Math.abs(b.t-res.peak.t)?f:b,frames[0]);
+  if(source==="sample"){drawWall("Furthest reach · "+res.peak.t.toFixed(1)+"s");drawSkeleton(pf.lm,W,H,[L.ls,L.le,L.lw,L.rs,L.re,L.rw])}
+  const route=ROUTES.find(r=>r.id===$("a-route").value)||ROUTES[8];
+  const at={route,source,outcome,res,findings:res.findings,n:S.attempts.length+1};
+  S.attempts.push(at);
+  st.textContent=(source==="sample"?"Sample attempt":"Your video")+" analyzed · "+frames.length+" frames";
+  renderResults(at);
+  refresh(true);
+  renderLog();
+  S.lastSession=buildSession().map(e=>e.r.id);
+  setBusy(false);
+}
+function renderResults(at){
+  const r=at.res,short=heightIn()<=64;
+  let h='<div class="metrics">'+
+   '<div class="metric"><div class="v">'+Math.round(r.peak.ang)+'°</div><div class="l">Elbow angle at furthest reach</div></div>'+
+   '<div class="metric"><div class="v">'+r.peak.reach.toFixed(1)+'×</div><div class="l">Reach height, in torso lengths</div></div>'+
+   '<div class="metric"><div class="v">'+(r.highFoot?"Yes":"No")+'</div><div class="l">High foot set before the reach</div></div>'+
+   '<div class="metric"><div class="v">'+Math.round(r.bentShare*100)+'%</div><div class="l">Time locked off on bent arms</div></div></div>';
+  if(r.findings.includes("reach")){
+    h+='<div class="finding"><b>Reached at full extension</b><span>At '+r.peak.t.toFixed(1)+'s your arm was straight ('+Math.round(r.peak.ang)+'°) with '+
+       (r.highFoot?'a high foot already set. The hold is at the edge of your span.':'both feet still low. There was no height left to gain.')+'</span></div>';
+  }
+  if(r.findings.includes("bent")){
+    h+='<div class="finding"><b>Hanging on bent arms</b><span>You held a bent-arm position for '+Math.round(r.bentShare*100)+'% of the time your hands were overhead. Straight arms between moves save energy.</span></div>';
+  }
+  if(!r.findings.length){
+    h+='<div class="finding ok"><b>Clean movement</b><span>You reached with a bent arm ('+Math.round(r.peak.ang)+'°)'+(r.highFoot?' from a high foot':'')+'. Nothing flagged on this attempt.</span></div>';
+  }
+  if(r.findings.includes("reach")&&at.route.betaShort){
+    h+='<div class="beta"><b>Beta for your body <span class="pill">example beta library</span></b><span>'+
+       (short?at.route.betaShort+' Climbers between 4\'11" and 5\'4" send it this way.':at.route.betaTall)+'</span></div>';
+  }else if(r.findings.includes("reach")){
+    h+='<div class="beta"><b>Try this</b><span>Move a foot up to hip height before the long move, then reach with a bent arm.</span></div>';
+  }
+  if(at.outcome)h+='<p class="muted">Logged as: '+(at.outcome==="sent"?"sent":"fell at the crux")+" · "+routeLabel(at.route)+'</p>';
+  $("results").innerHTML=h;
+}
+function repeated(){
+  const c={};S.attempts.forEach(a=>a.findings.forEach(f=>c[f]=(c[f]||0)+1));
+  return Object.keys(c).filter(f=>c[f]>=2).map(f=>({f,n:c[f]}));
+}
+function renderLog(){
+  if(!S.attempts.length)return;
+  const rows=S.attempts.map(a=>'<tr><td>'+a.n+'</td><td>'+routeLabel(a.route)+'</td><td>'+(a.source==="sample"?"Sample":"Video")+'</td><td>'+
+    (a.findings.length?a.findings.map(f=>FINDINGS[f].title).join(", "):"Nothing flagged")+'</td></tr>').join("");
+  const rep=repeated();
+  $("log").innerHTML='<div class="scroll"><table><thead><tr><th>#</th><th>Route</th><th>Source</th><th>Pattern</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+    (rep.length?'<p style="margin-top:12px"><b style="color:var(--accent)">Repeated pattern:</b> '+rep.map(x=>FINDINGS[x.f].title.toLowerCase()+" on "+x.n+" attempts").join("; ")+'. Your coach has been notified.</p>':
+     '<p class="muted" style="margin-top:12px">A pattern that shows up on two attempts is sent to your coach.</p>');
+}
+
+/* ---------- coach ---------- */
+function renderCoach(){
+  const rep=repeated(),you={name:"You",h:fmtH(heightIn()),g:"V"+S.grade};
+  const need=ROSTER.filter(p=>p.flag&&!S.reviewed[p.name]).map(p=>({...p,example:true}));
+  const youFlag=rep.length&&!S.reviewed.You;
+  if(youFlag)need.unshift({...you,flag:rep.map(x=>FINDINGS[x.f].title+" on "+x.n+" attempts ("+routeLabel(S.attempts[S.attempts.length-1].route)+")").join(". ")+". The long move is at the edge of their span. Crux suggested the high-foot beta.",me:true});
+  const track=ROSTER.filter(p=>!p.flag||S.reviewed[p.name]).map(p=>({...p,trend:p.trend||"Reviewed today"}));
+  if(!youFlag)track.unshift({...you,trend:S.attempts.length?S.attempts.length+" attempt"+(S.attempts.length>1?"s":"")+" logged"+(S.reviewed.You?", reviewed today":""):"No attempts yet"});
+  const total=ROSTER.length+1;
+  $("c-summary").innerHTML='<div class="sum alert"><div class="v">'+need.length+'</div><div>need attention</div></div>'+
+    '<div class="sum"><div class="v">'+track.length+'</div><div>on track</div></div>'+
+    '<div class="sum"><div class="v">'+total+'</div><div>climbers in this demo roster <span class="pill">example</span></div></div>';
+  $("c-need").innerHTML=need.length?need.map((p,i)=>'<div class="person"><div class="top"><span class="nm">'+esc(p.name)+(p.example?' <span class="pill">example</span>':'')+'</span><span class="muted">'+p.h+" · "+p.g+'</span></div>'+
+    '<p>'+esc(p.flag)+'</p><div class="actions">'+
+    (p.me?'<input type="text" id="c-note" aria-label="Note to climber" placeholder="Write a note to this climber" value="Right foot to the green jib first. Come find me Thursday and we will drill it."><button class="btn" type="button" data-send="1">Send note</button>':'')+
+    '<button class="btn alt" type="button" data-review="'+esc(p.name)+'">Mark reviewed</button></div></div>').join(""):
+    '<p class="muted">Nobody is flagged right now. Log two sample attempts that fall at the crux on the Climber tab to see a flag appear here.</p>';
+  $("c-track").innerHTML=track.map(p=>'<tr><td>'+esc(p.name)+'</td><td>'+p.h+'</td><td>'+p.g+'</td><td>'+esc(p.trend)+'</td></tr>').join("");
+}
+$("c-need").addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b)return;
+  if(b.dataset.send){S.coachNote=$("c-note").value.trim();S.reviewed.You=true;refresh(true)}
+  else if(b.dataset.review){S.reviewed[b.dataset.review]=true;renderCoach()}
+});
+
+/* ---------- wiring ---------- */
+function show(which){
+  $("view-climber").hidden=which!=="climber";$("view-coach").hidden=which!=="coach";
+  $("tab-climber").setAttribute("aria-pressed",which==="climber");$("tab-coach").setAttribute("aria-pressed",which==="coach");
+}
+$("tab-climber").onclick=()=>show("climber");$("tab-coach").onclick=()=>show("coach");
+$("p-ft").innerHTML=[4,5,6].map(n=>'<option value="'+n+'">'+n+' ft</option>').join("");
+$("p-in").innerHTML=[...Array(12).keys()].map(n=>'<option value="'+n+'">'+n+' in</option>').join("");
+$("p-grade").innerHTML=[0,1,2,3,4,5].map(n=>'<option value="'+n+'">V'+n+'</option>').join("");
+$("p-ft").value=S.ft;$("p-in").value=S.inch;$("p-grade").value=S.grade;
+$("p-weak").innerHTML=WEAK.map(w=>'<button type="button" class="chip" data-w="'+w.id+'" aria-pressed="'+S.weak.includes(w.id)+'">'+w.label+'</button>').join("");
+$("p-weak").addEventListener("click",e=>{
+  const b=e.target.closest(".chip");if(!b)return;const id=b.dataset.w;
+  S.weak=S.weak.includes(id)?S.weak.filter(x=>x!==id):S.weak.concat(id);
+  b.setAttribute("aria-pressed",S.weak.includes(id));refresh();
+});
+$("p-ft").onchange=e=>{S.ft=+e.target.value;refresh()};
+$("p-in").onchange=e=>{S.inch=+e.target.value;refresh()};
+$("p-grade").onchange=e=>{S.grade=+e.target.value;refresh()};
+$("p-ape").oninput=e=>{const v=Math.max(-4,Math.min(6,Math.round(+e.target.value||0)));S.ape=v;refresh()};
+$("btn-upload").onclick=()=>$("a-file").click();
+$("a-file").onchange=e=>{const f=e.target.files[0];e.target.value="";if(f)playVideo(f)};
+$("btn-a").onclick=()=>playSample("a");$("btn-b").onclick=()=>playSample("b");
+const RESULTS0=$("results").innerHTML,LOG0=$("log").innerHTML,STATUS0=$("status").textContent;
+$("btn-reset").onclick=()=>{
+  if(S.busy)return;
+  Object.assign(S,{ft:5,inch:0,ape:0,grade:3,weak:["tension","dyn"],attempts:[],reviewed:{},coachNote:"",lastSession:null});
+  $("p-ft").value=5;$("p-in").value=0;$("p-ape").value=0;$("p-grade").value=3;
+  document.querySelectorAll("#p-weak .chip").forEach(c=>c.setAttribute("aria-pressed",S.weak.includes(c.dataset.w)));
+  $("results").innerHTML=RESULTS0;$("log").innerHTML=LOG0;$("status").textContent=STATUS0;$("a-route").value="";
+  show("climber");refresh();idleStage();drawSkeleton(figure(keyAt(KEYS.a,0)),cv.width,cv.height);
+  window.scrollTo(0,0);
+};
+if(location.hash==="#coach")show("coach");
+refresh();idleStage();drawSkeleton(figure(keyAt(KEYS.a,0)),cv.width,cv.height);
+</script>
