@@ -47,7 +47,24 @@ The **Viewing as** menu at the top right switches between the four roles. **Rese
 8. **Setter → Blue V4.** The route shows as harder for shorter members, from the example send data. Retire it, and the climber's session rebuilds without it.
 9. **Gym admin → Revenue.** What the gym collects, what it pays Crux and what it keeps, with both prices adjustable.
 
-To analyze a real clip, use **Upload or record a video** on the Attempt screen. Film from behind with the whole body in frame, under 45 seconds. The first upload takes a few seconds while the pose model loads.
+## Analyzing a real video
+
+Use **Upload or record a video** on the Attempt screen. On a phone the button opens the camera.
+
+- Film from behind, with the whole body in frame for the whole climb.
+- Crux analyzes the first 45 seconds. Analysis takes about as long as the clip, and the first upload adds a few seconds while the pose model loads.
+- Use Chrome. MP4 works everywhere. iPhone clips work if the phone is set to Settings → Camera → Formats → Most Compatible.
+- The video is analyzed on the device and is not uploaded.
+
+How it handles real footage:
+
+- It steps through the clip at 10 frames a second instead of playing it, so a slow laptop measures the same moments as a fast one. On a slow device it samples less often (never under 3 a second) to finish in about a minute.
+- It ignores frames where the climber is standing on the mat, so reaching up to the start holds does not count as a reach. The mat level is taken from the lowest the feet get during the clip.
+- The results show how many frames the climber was tracked in, and warn when tracking was lost in more than 40% of them.
+
+It has been run on two real bouldering clips filmed from behind on a phone, with the climber small in frame. The pose was found in 86% and 93% of frames.
+
+**Known limit.** The full-extension rule fires whenever a hand is high overhead on a straight arm. On real footage that includes ordinary straight-arm hangs, which are often good technique. The rule needs tuning against real climbs before its feedback can be trusted. The threshold constants are at the top of `src/lib/analysis.ts`.
 
 ## What is real and what is example data
 

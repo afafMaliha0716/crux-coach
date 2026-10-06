@@ -3,7 +3,7 @@ import { getClip, saveClip, type Clip } from "../clips";
 import { Playback } from "../components/Playback";
 import { Empty, Metric, RouteCard, RouteName } from "../components/ui";
 import { drawSkeleton, drawWall } from "../draw";
-import { analyze } from "../lib/analysis";
+import { RULES, analyze } from "../lib/analysis";
 import { fmtHeight, routeLabel, timeAgo } from "../lib/format";
 import { spanIn } from "../lib/reach";
 import { SAMPLE_SIZE, sampleFrames, type SampleId } from "../lib/samples";
@@ -208,10 +208,17 @@ export function Results({ analysis, route, beta, heightIn }: { analysis: Metrics
       {a.findings.length === 0 && (
         <div className="finding ok">
           <b>Clean movement</b>
-          <span>
-            You reached with a bent arm (<span className="mono">{Math.round(a.peakAngle)}°</span>){a.highFoot ? " from a high foot" : ""}. Nothing flagged on this
-            attempt.
-          </span>
+          {a.peakAngle >= RULES.fullExtensionAngle ? (
+            <span>
+              Your arm was straight (<span className="mono">{Math.round(a.peakAngle)}°</span>) at the furthest reach, but your hand was only{" "}
+              <span className="mono">{a.peakReach.toFixed(1)}</span> torso lengths above your shoulder, so you were not stretched out. Nothing flagged on this attempt.
+            </span>
+          ) : (
+            <span>
+              You reached with a bent arm (<span className="mono">{Math.round(a.peakAngle)}°</span>){a.highFoot ? " from a high foot" : ""}. Nothing flagged on this
+              attempt.
+            </span>
+          )}
         </div>
       )}
       {a.findings.includes("reach") &&
@@ -233,6 +240,15 @@ export function Results({ analysis, route, beta, heightIn }: { analysis: Metrics
   );
 }
 
+/** Only the first part of a long clip is analyzed. */
+const MAX_CLIP_S = 45;
+/** Pose is sampled this many times per second of video. */
+const SAMPLE_FPS = 10;
+/** On a slow device the sampling rate drops, but never below this. */
+const MIN_FPS = 3;
+/** Target for how long analysis of one clip should take, in seconds. */
+const TIME_BUDGET_S = 75;
+
 type Phase = { kind: "idle" } | { kind: "working"; status: string } | { kind: "error"; message: string } | { kind: "done"; attemptId: string };
 
 export function AttemptScreen() {
@@ -245,6 +261,7 @@ export function AttemptScreen() {
   const canvas = useRef<HTMLCanvasElement>(null);
   const file = useRef<HTMLInputElement>(null);
   const alive = useRef(true);
+  const cancelled = useRef(false);
   useEffect(() => {
     alive.current = true;
     return () => {
@@ -263,14 +280,18 @@ export function AttemptScreen() {
     drawSkeleton(ctx, sampleFrames("fall")[0].lm, c.width, c.height);
   }, [phase.kind]);
 
-  const finish = (frames: Frame[], clip: Clip, source: "video" | "sample", result: "fell" | "sent", onRoute: string) => {
+  const finish = (frames: Frame[], clip: Clip, source: "video" | "sample", result: "fell" | "sent", onRoute: string, trimmed = false) => {
     const a = analyze(frames, clip.width, clip.height);
     if (!a) {
-      setPhase({ kind: "error", message: "Crux could not find a climber in this clip. Film from behind with your whole body in frame." });
+      if (clip.videoUrl) URL.revokeObjectURL(clip.videoUrl);
+      setPhase({
+        kind: "error",
+        message: "Crux could not find a climber in this clip. Film from behind, keep the whole body in frame, and stand close enough that the climber fills at least a third of the height.",
+      });
       return;
     }
     const { findings, usableFrames, ...metrics } = a;
-    const attempt = logAttempt({ routeId: onRoute, at: Date.now(), source, outcome: result, metrics, findings, framesAnalyzed: usableFrames });
+    const attempt = logAttempt({ routeId: onRoute, at: Date.now(), source, outcome: result, metrics, findings, framesAnalyzed: usableFrames, framesSampled: frames.length, trimmed });
     saveClip(attempt.id, clip);
     setPhase({ kind: "done", attemptId: attempt.id });
   };
@@ -300,6 +321,7 @@ export function AttemptScreen() {
   const runVideo = async (f: File) => {
     const c = canvas.current, ctx = c?.getContext("2d");
     if (!c || !ctx) return;
+    cancelled.current = false;
     setPhase({ kind: "working", status: "Loading the pose model. The first time takes a few seconds…" });
     let tracker;
     try {
@@ -313,6 +335,7 @@ export function AttemptScreen() {
       const v = document.createElement("video");
       v.muted = true;
       v.playsInline = true;
+      v.preload = "auto";
       v.src = url;
       await new Promise<void>((res, rej) => {
         v.onloadeddata = () => res();
@@ -322,25 +345,53 @@ export function AttemptScreen() {
       const width = Math.round(v.videoWidth * scale), height = Math.round(v.videoHeight * scale);
       c.width = width;
       c.height = height;
-      const limit = Math.min(v.duration || 45, 45);
+      const duration = Number.isFinite(v.duration) && v.duration > 0 ? v.duration : MAX_CLIP_S;
+      const limit = Math.min(duration, MAX_CLIP_S);
+
+      // Step through the clip frame by frame instead of playing it, so a slow laptop
+      // samples the same moments as a fast one. It just takes longer.
+      const seek = (t: number) =>
+        new Promise<void>((res) => {
+          const done = () => {
+            v.removeEventListener("seeked", done);
+            clearTimeout(timer);
+            res();
+          };
+          const timer = setTimeout(done, 2000);
+          v.addEventListener("seeked", done);
+          v.currentTime = t;
+        });
+
       const frames: Frame[] = [];
-      await v.play();
-      while (!v.ended && v.currentTime < limit) {
-        if (!alive.current) {
-          v.pause();
+      let fps = SAMPLE_FPS;
+      const started = performance.now();
+      for (let t = 0.001; t < limit; t += 1 / fps) {
+        if (!alive.current || cancelled.current) {
+          URL.revokeObjectURL(url);
+          if (alive.current) setPhase({ kind: "idle" });
           return;
         }
+        await seek(t);
         const lm = await tracker.detect(v);
         ctx.drawImage(v, 0, 0, width, height);
         drawSkeleton(ctx, lm, width, height);
-        frames.push({ t: v.currentTime, lm });
-        setPhase({ kind: "working", status: `Tracking pose… ${Math.round((100 * v.currentTime) / limit)}%` });
+        frames.push({ t, lm });
+        if (frames.length === 5) {
+          // Slow device: sample less often so the whole clip still finishes in about a minute.
+          const perFrame = (performance.now() - started) / 5000;
+          if (perFrame * limit * fps > TIME_BUDGET_S) fps = Math.max(MIN_FPS, TIME_BUDGET_S / (perFrame * limit));
+        }
+        setPhase({ kind: "working", status: `Tracking pose… ${Math.round((100 * t) / limit)}%` });
         await new Promise((r) => requestAnimationFrame(r));
       }
-      v.pause();
-      finish(frames, { kind: "video", frames, width, height, videoUrl: url }, "video", outcome, routeId);
+      finish(frames, { kind: "video", frames, width, height, videoUrl: url }, "video", outcome, routeId, duration > MAX_CLIP_S);
     } catch {
-      setPhase({ kind: "error", message: "That video could not be played. Try an MP4 or MOV clip under a minute." });
+      URL.revokeObjectURL(url);
+      setPhase({
+        kind: "error",
+        message:
+          "This browser could not play that video. Try Chrome, or an MP4 file. iPhone clips play if you set Settings → Camera → Formats to Most Compatible before filming.",
+      });
     }
   };
 
@@ -355,8 +406,8 @@ export function AttemptScreen() {
         <div className="row between">
           <div className="stack tight">
             <span className="label">
-              {attempt.source === "sample" ? "Sample attempt" : "Your video"} · <span className="mono">{attempt.framesAnalyzed}</span> frames tracked ·{" "}
-              {attempt.outcome === "sent" ? "sent" : "fell"}
+              {attempt.source === "sample" ? "Sample attempt" : "Your video"} · climber tracked in <span className="mono">{attempt.framesAnalyzed}</span> of{" "}
+              <span className="mono">{attempt.framesSampled ?? attempt.framesAnalyzed}</span> frames · {attempt.outcome === "sent" ? "sent" : "fell"}
             </span>
             {route && <RouteName route={route} />}
           </div>
@@ -364,6 +415,13 @@ export function AttemptScreen() {
             Log another attempt
           </button>
         </div>
+        {attempt.trimmed && <p className="small muted">This clip is longer than {MAX_CLIP_S} seconds, so Crux analyzed the first {MAX_CLIP_S}.</p>}
+        {attempt.framesSampled !== undefined && attempt.framesAnalyzed < attempt.framesSampled * 0.6 && (
+          <p className="small" style={{ color: "var(--accent)", fontWeight: 500 }}>
+            Crux lost sight of the climber in {Math.round(100 - (100 * attempt.framesAnalyzed) / attempt.framesSampled)}% of the frames, so treat these numbers with care. Filming closer
+            and from directly behind helps.
+          </p>
+        )}
         <div className="cards2 attempt-grid">
           <Playback clip={clip} flaggedT={attempt.metrics.peakT} flagged={attempt.findings.includes("reach")} />
           <Results analysis={analysis} route={route} beta={state.beta} heightIn={me.heightIn} />
@@ -427,9 +485,18 @@ export function AttemptScreen() {
               </button>
             </div>
           </div>
-          <button className="btn primary big" type="button" disabled={busy} onClick={() => file.current?.click()}>
-            Upload or record a video
-          </button>
+          {busy && phase.kind === "working" && phase.status.startsWith("Tracking") ? (
+            <button className="btn big" type="button" onClick={() => (cancelled.current = true)}>
+              Cancel
+            </button>
+          ) : (
+            <button className="btn primary big" type="button" disabled={busy} onClick={() => file.current?.click()}>
+              Upload or record a video
+            </button>
+          )}
+          <span className="small muted">
+            Up to {MAX_CLIP_S} seconds. Analysis takes about as long as the clip. The video stays on this device.
+          </span>
           <input
             ref={file}
             id="video-file"

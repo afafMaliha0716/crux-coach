@@ -8,8 +8,13 @@ const ARM_BONES = new Set(["11-13", "13-15", "12-14", "14-16"]);
 /** Draws the tracked skeleton. `flagArms` paints the arms in the accent color at a flagged moment. */
 export function drawSkeleton(ctx: CanvasRenderingContext2D, lm: (Landmark | undefined)[] | null, W: number, H: number, flagArms = false) {
   if (!lm) return;
+  // Size the lines and joints to the climber, who is often small in a phone clip.
+  let size = W / 70;
+  const ls = lm[L.ls], lh = lm[L.lh];
+  if (visible(ls) && visible(lh)) size = Math.max(2.5, Math.min(size, Math.hypot((ls.x - lh.x) * W, (ls.y - lh.y) * H) * 0.09));
+  const line = Math.max(2, size * 0.75);
   ctx.lineCap = "round";
-  ctx.lineWidth = Math.max(3, W / 90);
+  ctx.lineWidth = line;
   for (const [a, b] of BONES) {
     const p = lm[a], q = lm[b];
     if (!visible(p) || !visible(q)) continue;
@@ -24,12 +29,12 @@ export function drawSkeleton(ctx: CanvasRenderingContext2D, lm: (Landmark | unde
     if (!visible(p)) continue;
     ctx.fillStyle = flagArms && ARMS.includes(i) ? "#F07A65" : "#FFFFFF";
     ctx.strokeStyle = "#12142A";
-    ctx.lineWidth = 2;
+    ctx.lineWidth = Math.max(1, size * 0.3);
     ctx.beginPath();
-    ctx.arc(p.x * W, p.y * H, Math.max(4, W / 70), 0, Math.PI * 2);
+    ctx.arc(p.x * W, p.y * H, size, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
-    ctx.lineWidth = Math.max(3, W / 90);
+    ctx.lineWidth = line;
   }
 }
 

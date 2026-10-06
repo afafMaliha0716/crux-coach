@@ -79,7 +79,12 @@ export interface Attempt {
   outcome: "sent" | "fell";
   metrics?: Metrics;
   findings: FindingId[];
+  /** Frames in which the climber's pose was found. */
   framesAnalyzed: number;
+  /** Frames the pose model was run on. */
+  framesSampled?: number;
+  /** The clip was longer than the limit, so only its first part was analyzed. */
+  trimmed?: boolean;
   sharedWithCoach: boolean;
   example: boolean;
 }
