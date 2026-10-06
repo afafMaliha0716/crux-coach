@@ -1,0 +1,5 @@
+node_modules
+dist
+public/pose
+*.log
+.DS_Store
