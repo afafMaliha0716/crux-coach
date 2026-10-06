@@ -62,6 +62,8 @@ How it handles real footage:
 - It ignores frames where the climber is standing on the mat, so reaching up to the start holds does not count as a reach. The mat level is taken from the lowest the feet get during the clip.
 - The results show how many frames the climber was tracked in, and warn when tracking was lost in more than 40% of them.
 
+**Showing a real clip quickly.** Once a clip has been analyzed, Crux saves the video and its measurements in that browser. Next time, it appears under "Clips analyzed on this device" on the Attempt screen and opens instantly. Uploading the same file again is instant too. So for a live demo: analyze the clip once beforehand, on the laptop and browser you will present from, at the address you will present from. Reset demo does not remove saved clips.
+
 It has been run on two real bouldering clips filmed from behind on a phone, with the climber small in frame. The pose was found in 86% and 93% of frames.
 
 **Known limit.** The full-extension rule fires whenever a hand is high overhead on a straight arm. On real footage that includes ordinary straight-arm hangs, which are often good technique. The rule needs tuning against real climbs before its feedback can be trusted. The threshold constants are at the top of `src/lib/analysis.ts`.
@@ -107,6 +109,7 @@ The rest of `src/`:
 |---|---|
 | `store.tsx` | All app data and the actions that change it, saved to the browser's localStorage |
 | `pose.ts` | Loads MediaPipe Pose and runs it on video frames |
+| `savedClips.ts` | Keeps analyzed clips in the browser so they reopen instantly |
 | `screens/` | One file per role: `climber.tsx`, `coach.tsx`, `setter.tsx`, `admin.tsx` |
 | `components/` | Shared pieces, including `Playback.tsx` (the clip with its skeleton and scrubber) |
 | `styles.css` | Design tokens and component styles, light and dark |

@@ -11,6 +11,7 @@ import { FINDINGS, FOCUS, buildSession } from "../lib/session";
 import type { Attempt, FindingId, FocusId, Frame, Metrics, Profile, Route, RouteBeta } from "../lib/types";
 import { getPoseTracker } from "../pose";
 import { go } from "../router";
+import { clipKey, getSavedClip, listSavedClips, removeSavedClip, saveClipForLater, type SavedClip } from "../savedClips";
 import { useStore } from "../store";
 
 /* ---------- shared profile fields ---------- */
@@ -249,7 +250,7 @@ const MIN_FPS = 3;
 /** Target for how long analysis of one clip should take, in seconds. */
 const TIME_BUDGET_S = 75;
 
-type Phase = { kind: "idle" } | { kind: "working"; status: string } | { kind: "error"; message: string } | { kind: "done"; attemptId: string };
+type Phase = { kind: "idle" } | { kind: "working"; status: string } | { kind: "error"; message: string } | { kind: "done"; attemptId: string; saved: boolean };
 
 export function AttemptScreen() {
   const { state, me, myAttempts, logAttempt, setShared } = useStore();
@@ -260,10 +261,13 @@ export function AttemptScreen() {
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
   const canvas = useRef<HTMLCanvasElement>(null);
   const file = useRef<HTMLInputElement>(null);
+  const [saved, setSaved] = useState<SavedClip[]>([]);
+  const refreshSaved = () => void listSavedClips().then((list) => alive.current && setSaved(list));
   const alive = useRef(true);
   const cancelled = useRef(false);
   useEffect(() => {
     alive.current = true;
+    refreshSaved();
     return () => {
       alive.current = false;
     };
@@ -280,7 +284,7 @@ export function AttemptScreen() {
     drawSkeleton(ctx, sampleFrames("fall")[0].lm, c.width, c.height);
   }, [phase.kind]);
 
-  const finish = (frames: Frame[], clip: Clip, source: "video" | "sample", result: "fell" | "sent", onRoute: string, trimmed = false) => {
+  const finish = (frames: Frame[], clip: Clip, source: "video" | "sample", result: "fell" | "sent", onRoute: string, trimmed = false, fromSaved = false): boolean => {
     const a = analyze(frames, clip.width, clip.height);
     if (!a) {
       if (clip.videoUrl) URL.revokeObjectURL(clip.videoUrl);
@@ -288,12 +292,19 @@ export function AttemptScreen() {
         kind: "error",
         message: "Crux could not find a climber in this clip. Film from behind, keep the whole body in frame, and stand close enough that the climber fills at least a third of the height.",
       });
-      return;
+      return false;
     }
     const { findings, usableFrames, ...metrics } = a;
     const attempt = logAttempt({ routeId: onRoute, at: Date.now(), source, outcome: result, metrics, findings, framesAnalyzed: usableFrames, framesSampled: frames.length, trimmed });
     saveClip(attempt.id, clip);
-    setPhase({ kind: "done", attemptId: attempt.id });
+    setPhase({ kind: "done", attemptId: attempt.id, saved: fromSaved });
+    return true;
+  };
+
+  /** Opens a clip that was analyzed earlier on this device. No tracking is needed. */
+  const openSaved = (rec: SavedClip) => {
+    const url = URL.createObjectURL(rec.file);
+    finish(rec.frames, { kind: "video", frames: rec.frames, width: rec.width, height: rec.height, videoUrl: url }, "video", outcome, routeId, rec.trimmed, true);
   };
 
   const runSample = (which: SampleId) => {
@@ -322,6 +333,11 @@ export function AttemptScreen() {
     const c = canvas.current, ctx = c?.getContext("2d");
     if (!c || !ctx) return;
     cancelled.current = false;
+    const known = await getSavedClip(clipKey(f));
+    if (known) {
+      openSaved(known);
+      return;
+    }
     setPhase({ kind: "working", status: "Loading the pose model. The first time takes a few seconds…" });
     let tracker;
     try {
@@ -384,7 +400,11 @@ export function AttemptScreen() {
         setPhase({ kind: "working", status: `Tracking pose… ${Math.round((100 * t) / limit)}%` });
         await new Promise((r) => requestAnimationFrame(r));
       }
-      finish(frames, { kind: "video", frames, width, height, videoUrl: url }, "video", outcome, routeId, duration > MAX_CLIP_S);
+      const trimmed = duration > MAX_CLIP_S;
+      if (finish(frames, { kind: "video", frames, width, height, videoUrl: url }, "video", outcome, routeId, trimmed)) {
+        await saveClipForLater({ key: clipKey(f), name: f.name, file: f, frames, width, height, trimmed, savedAt: Date.now() });
+        refreshSaved();
+      }
     } catch {
       URL.revokeObjectURL(url);
       setPhase({
@@ -415,6 +435,9 @@ export function AttemptScreen() {
             Log another attempt
           </button>
         </div>
+        {phase.saved && (
+          <p className="small muted">This clip was analyzed earlier on this device, so Crux opened the saved measurements instead of tracking it again.</p>
+        )}
         {attempt.trimmed && <p className="small muted">This clip is longer than {MAX_CLIP_S} seconds, so Crux analyzed the first {MAX_CLIP_S}.</p>}
         {attempt.framesSampled !== undefined && attempt.framesAnalyzed < attempt.framesSampled * 0.6 && (
           <p className="small" style={{ color: "var(--accent)", fontWeight: 500 }}>
@@ -509,6 +532,28 @@ export function AttemptScreen() {
               if (f) void runVideo(f);
             }}
           />
+          {saved.length > 0 && (
+            <div className="card">
+              <span className="label">Clips analyzed on this device</span>
+              <span className="small muted">These open instantly, because the tracking is already done. They are stored in this browser only.</span>
+              {saved.map((rec) => (
+                <div className="row between" key={rec.key}>
+                  <button className="btn" type="button" disabled={busy} onClick={() => openSaved(rec)} style={{ minWidth: 0, overflowWrap: "anywhere", textAlign: "left" }}>
+                    Open {rec.name}
+                  </button>
+                  <button
+                    className="btn quiet"
+                    type="button"
+                    disabled={busy}
+                    aria-label={`Remove ${rec.name}`}
+                    onClick={() => void removeSavedClip(rec.key).then(refreshSaved)}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
           <div className="card">
             <span className="label">No clip yet? Try a sample on Blue V4</span>
             <span className="small muted">Samples are animations. They run through the same measurement code as a real video.</span>
